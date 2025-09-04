@@ -17,8 +17,8 @@ export async function POST(request: NextRequest) {
       success: true,
       data: result
     });
-  } catch (error) {
-    console.error('Calculation error:', error);
+  } catch (err) {
+    console.error('Calculation error:', err);
     return NextResponse.json(
       { success: false, error: 'Calculation failed' },
       { status: 500 }
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-function executeFormula(formula: string, inputs: Record<string, any>) {
+function executeFormula(formula: string, inputs: Record<string, number | string>) {
   try {
     const func = new Function(...Object.keys(inputs), `
       ${formula}
