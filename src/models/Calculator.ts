@@ -54,9 +54,4 @@ const CalculatorSchema = new Schema<CalculatorDocument>({
   timestamps: true
 });
 
-CalculatorSchema.index({ slug: 1 });
-CalculatorSchema.index({ category: 1 });
-CalculatorSchema.index({ featured: 1 });
-CalculatorSchema.index({ published: 1 });
-
 export default mongoose.models.Calculator || mongoose.model<CalculatorDocument>('Calculator', CalculatorSchema);

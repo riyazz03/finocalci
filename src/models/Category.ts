@@ -14,7 +14,4 @@ const CategorySchema = new Schema<CategoryDocument>({
   timestamps: true
 });
 
-CategorySchema.index({ slug: 1 });
-CategorySchema.index({ order: 1 });
-
 export default mongoose.models.Category || mongoose.model<CategoryDocument>('Category', CategorySchema);

@@ -1,48 +1,47 @@
-import mongoose from 'mongoose';
+import { NextRequest, NextResponse } from 'next/server';
+import { connectToDatabase } from '@/lib/database/mongodb';
+import { Calculator } from '@/models';
 
-const MONGODB_URI = process.env.MONGODB_URI;
-
-if (!MONGODB_URI && process.env.NODE_ENV === 'production') {
-  throw new Error('Please define the MONGODB_URI environment variable');
+interface RouteParams {
+  params: Promise<{
+    slug: string;
+  }>;
 }
 
-interface MongooseCache {
-  conn: typeof mongoose | null;
-  promise: Promise<typeof mongoose> | null;
-}
-
-declare global {
-  var mongoose: MongooseCache | undefined;
-}
-
-const cached: MongooseCache = global.mongoose || { conn: null, promise: null };
-
-if (!global.mongoose) {
-  global.mongoose = cached;
-}
-
-export async function connectToDatabase() {
-  if (!MONGODB_URI) {
-    console.warn('⚠️ MONGODB_URI not defined - skipping database connection during build');
-    return null;
-  }
-
-  if (cached.conn) {
-    return cached.conn;
-  }
-
-  if (!cached.promise) {
-    cached.promise = mongoose.connect(MONGODB_URI);
-  }
-
+export async function GET(
+  request: NextRequest,
+  context: RouteParams
+) {
   try {
-    cached.conn = await cached.promise;
-    console.log('✅ Connected to MongoDB');
-  } catch (e) {
-    cached.promise = null;
-    console.error('❌ MongoDB connection error:', e);
-    throw e;
-  }
+    await connectToDatabase();
+    
+    const { slug } = await context.params;
+    
+    const calculator = await Calculator.findOne({ 
+      slug: slug, 
+      published: true 
+    });
 
-  return cached.conn;
+    if (!calculator) {
+      return NextResponse.json(
+        { success: false, error: 'Calculator not found' },
+        { status: 404 }
+      );
+    }
+
+    await Calculator.findByIdAndUpdate(calculator._id, {
+      $inc: { views: 1 }
+    });
+
+    return NextResponse.json({
+      success: true,
+      data: calculator
+    });
+  } catch (error) {
+    console.error('Error fetching calculator:', error);
+    return NextResponse.json(
+      { success: false, error: 'Failed to fetch calculator' },
+      { status: 500 }
+    );
+  }
 }
