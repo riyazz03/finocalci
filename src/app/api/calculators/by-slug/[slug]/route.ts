@@ -1,39 +1,48 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { connectToDatabase } from '@/lib/database/mongodb';
-import { Calculator } from '@/models';
+import mongoose from 'mongoose';
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { slug: string } }
-) {
-  try {
-    await connectToDatabase();
-    
-    const calculator = await Calculator.findOne({ 
-      slug: params.slug, 
-      published: true 
-    });
+const MONGODB_URI = process.env.MONGODB_URI;
 
-    if (!calculator) {
-      return NextResponse.json(
-        { success: false, error: 'Calculator not found' },
-        { status: 404 }
-      );
-    }
+if (!MONGODB_URI && process.env.NODE_ENV === 'production') {
+  throw new Error('Please define the MONGODB_URI environment variable');
+}
 
-    await Calculator.findByIdAndUpdate(calculator._id, {
-      $inc: { views: 1 }
-    });
+interface MongooseCache {
+  conn: typeof mongoose | null;
+  promise: Promise<typeof mongoose> | null;
+}
 
-    return NextResponse.json({
-      success: true,
-      data: calculator
-    });
-  } catch (error) {
-    console.error('Error fetching calculator:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to fetch calculator' },
-      { status: 500 }
-    );
+declare global {
+  var mongoose: MongooseCache | undefined;
+}
+
+const cached: MongooseCache = global.mongoose || { conn: null, promise: null };
+
+if (!global.mongoose) {
+  global.mongoose = cached;
+}
+
+export async function connectToDatabase() {
+  if (!MONGODB_URI) {
+    console.warn('⚠️ MONGODB_URI not defined - skipping database connection during build');
+    return null;
   }
+
+  if (cached.conn) {
+    return cached.conn;
+  }
+
+  if (!cached.promise) {
+    cached.promise = mongoose.connect(MONGODB_URI);
+  }
+
+  try {
+    cached.conn = await cached.promise;
+    console.log('✅ Connected to MongoDB');
+  } catch (e) {
+    cached.promise = null;
+    console.error('❌ MongoDB connection error:', e);
+    throw e;
+  }
+
+  return cached.conn;
 }
