@@ -33,7 +33,7 @@ function executeFormula(formula: string, inputs: Record<string, number | string>
     `);
     
     return func(...Object.values(inputs));
-  } catch (error) {
+  } catch {
     throw new Error('Invalid formula execution');
   }
 }
